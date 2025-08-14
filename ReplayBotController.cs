@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TootTallyAutoToot;
+using TootTallyCore.Utils.TootTallyNotifs;
 using TootTallyLeaderboard;
 using TootTallyLeaderboard.Replays;
 using UnityEngine;
@@ -74,7 +76,10 @@ namespace TootTallyReplayViewerBot
                     SetState(BotState.Transitioning);
                     break;
                 case SceneStates.GameScene:
-                    SetState(BotState.Replaying);
+                    if (Plugin.Instance.UseAutoToot.Value)
+                        WaitForSeconds(.5f);
+                    else
+                        SetState(BotState.Replaying);
                     break;
                 case SceneStates.PointScene:
                     SetAction(ExitPointScene);
@@ -88,6 +93,7 @@ namespace TootTallyReplayViewerBot
             if (Input.GetKeyDown(Plugin.Instance.ToggleKey.Value))
             {
                 IsEnabled = !IsEnabled;
+                TootTallyNotifManager.DisplayNotif($"Replay Viewer bot {(IsEnabled ? "Enabled" : "Disabled")}");
                 if (IsEnabled)
                     UpdateOnSceneStateChange();
             }
@@ -124,7 +130,10 @@ namespace TootTallyReplayViewerBot
         {
             (_currentController as LevelSelectController).clickRandomTrack();
             _scoresList.Clear();
-            SetAction(PickRandomReplay);
+            if (Plugin.Instance.UseAutoToot.Value)
+                SetAction(StartSongWithAutoToot);
+            else
+                SetAction(PickRandomReplay);
             WaitForSeconds(10);
         }
 
@@ -133,6 +142,19 @@ namespace TootTallyReplayViewerBot
             _scoresList.Add(entry);
             if (Plugin.Instance.DebugMode.Value)
                 Plugin.LogInfo($"ReplayID {entry.replay_id} was added. Total Replay Count is now {_scoresList.Count}");
+        }
+
+        public void StartSongWithAutoToot()
+        {
+            (_currentController as LevelSelectController).clickPlay();
+            SetAction(ToggleAutoToot);
+        }
+
+        public void ToggleAutoToot()
+        {
+            (_currentController as GameController).pointer.TryGetComponent(out AutoTootController controller);
+            controller?.ToggleEnable();
+            SetState(BotState.AutoTooting);
         }
 
         public void PickRandomReplay()
@@ -184,6 +206,7 @@ namespace TootTallyReplayViewerBot
             Waiting,
             Transitioning,
             Replaying,
+            AutoTooting,
             SelectingSong,
             Inactive
         }
