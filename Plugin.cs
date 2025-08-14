@@ -7,16 +7,18 @@ using TootTallyCore.Utils.TootTallyModules;
 using TootTallySettings;
 using UnityEngine;
 
-namespace TootTally.ModuleTemplate
+namespace TootTallyReplayViewerBot
 {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInDependency("TootTallyCore", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("TootTallySettings", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("TootTallyLeaderboard", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("TootTallyAutoToot", BepInDependency.DependencyFlags.HardDependency)]
     public class Plugin : BaseUnityPlugin, ITootTallyModule
     {
         public static Plugin Instance;
 
-        private const string CONFIG_NAME = "ModuleTemplate.cfg";
+        private const string CONFIG_NAME = "TootTallyReplayViewerBot.cfg";
         private Harmony _harmony;
         public ConfigEntry<bool> ModuleConfigEnabled { get; set; }
         public bool IsConfigInitialized { get; set; }
@@ -41,7 +43,7 @@ namespace TootTally.ModuleTemplate
         private void TryInitialize()
         {
             // Bind to the TTModules Config for TootTally
-            ModuleConfigEnabled = TootTallyCore.Plugin.Instance.Config.Bind("Modules", "<insert module name here>", true, "<insert module description here>");
+            ModuleConfigEnabled = TootTallyCore.Plugin.Instance.Config.Bind("Modules", "TootTallyReplayViewerBot", true, "Module that automatically watches replays.");
             TootTallyModuleManager.AddModule(this);
             TootTallySettings.Plugin.Instance.AddModuleToSettingPage(this);
         }
@@ -50,18 +52,17 @@ namespace TootTally.ModuleTemplate
         {
             string configPath = Path.Combine(Paths.BepInExRootPath, "config/");
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
-            // Set your config here by binding them to the related ConfigEntry
-            // Example:
-            // Unlimited = config.Bind(CONFIG_FIELD, "Unlimited", DEFAULT_UNLISETTING)
+            ToggleKey = config.Bind("General", nameof(ToggleKey), KeyCode.F10, "Enable / Disable AutoToot.");
+            DebugMode = config.Bind("General", nameof(DebugMode), false, "Show additional logs.");
+            UseAutoToot = config.Bind("General", nameof(UseAutoToot), false, "Use AutoToot instead of replays.");
 
-            settingPage = TootTallySettingsManager.AddNewPage("ModulePageName", "HeaderText", 40f, new Color(0,0,0,0));
-            if (settingPage != null) {
-                // Use TootTallySettingPage functions to add your objects to TootTallySetting
-                // Example:
-                // page.AddToggle(name, option.Unlimited);
-            }
+            settingPage = TootTallySettingsManager.AddNewPage("TootTallyReplayViewerBot", "TootTally Replay Viewer Bot", 40f, new Color(0,0,0,0));
+            settingPage.AddLabel("Toggle Key");
+            settingPage.AddDropdown("Toggle Key", ToggleKey);
+            settingPage.AddToggle("Debug Mode", DebugMode);
+            settingPage.AddToggle("UseAutoToot", UseAutoToot);
 
-            _harmony.PatchAll(typeof(ModuleTemplatePatches));
+            _harmony.PatchAll(typeof(ReplayBotManager));
             LogInfo($"Module loaded!");
         }
 
@@ -72,13 +73,9 @@ namespace TootTally.ModuleTemplate
             LogInfo($"Module unloaded!");
         }
 
-        public static class ModuleTemplatePatches
-        {
-            // Apply your Trombone Champ patches here
-        }
+        public ConfigEntry<KeyCode> ToggleKey { get; set; }
+        public ConfigEntry<bool> DebugMode { get; set; }
+        public ConfigEntry<bool> UseAutoToot { get; set; }
 
-        // Add your ConfigEntry objects that define your configs
-        // Example:
-        // public ConfigEntry<bool> Unlimited { get; set; }
     }
 }
